@@ -4,7 +4,7 @@ import { ArrowDownIcon, ArrowUpIcon, ExternalLinkIcon } from 'lucide-react';
 import type { SortKey } from '@/lib/domain/filter';
 import { SOURCE_LABELS } from '@/lib/domain/source';
 import { isStale } from '@/lib/domain/status';
-import { formatShortDate } from '@/lib/domain/time';
+import { formatDate } from '@/lib/domain/time';
 import type { Application } from '@/lib/domain/types';
 import { cn } from '@/lib/utils';
 import { StaleMark, StatusBadge } from './StatusBadge';
@@ -61,7 +61,7 @@ export function ApplicationsTable({
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left text-xs font-medium text-muted-foreground">
           <tr>
-            <th className="w-20 px-3 py-2">
+            <th className="w-28 px-3 py-2">
               <SortHeader label="Дата" k="appliedAt" sort={sort} onSort={onSort} />
             </th>
             <th className="px-3 py-2">
@@ -86,7 +86,7 @@ export function ApplicationsTable({
                 pendingIds.has(a.id) && 'opacity-60',
               )}
             >
-              <td className="px-3 py-2 tabular-nums text-muted-foreground">{formatShortDate(a.appliedAt)}</td>
+              <td className="px-3 py-2 tabular-nums text-muted-foreground">{formatDate(a.appliedAt)}</td>
               <td className="max-w-48 truncate px-3 py-2 font-medium">{a.company}</td>
               <td className="max-w-72 truncate px-3 py-2">{a.position}</td>
               <td className="px-3 py-2">

@@ -39,6 +39,11 @@ export function formatShortDate(date: string): string {
   return `${date.slice(8, 10)}.${date.slice(5, 7)}`;
 }
 
+/** '2026-08-14' or '2026-08-14T10:00' -> '14.08.2026' */
+export function formatDate(date: string): string {
+  return `${formatShortDate(date)}.${date.slice(0, 4)}`;
+}
+
 /** '2026-08-14T10:00' -> '14.08, 10:00' */
 export function formatShortDateTime(dateTime: string): string {
   const time = dateTime.length > 10 ? dateTime.slice(11, 16) : '';

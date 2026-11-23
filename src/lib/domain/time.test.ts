@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, formatShortDate, nowInKyiv, todayInKyiv } from './time';
+import { addDays, formatDate, formatShortDate, nowInKyiv, todayInKyiv } from './time';
 
 describe('Kyiv time', () => {
   it('uses the Kyiv date just after Kyiv midnight, not the UTC date', () => {
@@ -29,5 +29,12 @@ describe('formatShortDate', () => {
   it('formats as DD.MM', () => {
     expect(formatShortDate('2026-08-14')).toBe('14.08');
     expect(formatShortDate('2026-09-02T14:00')).toBe('02.09');
+  });
+});
+
+describe('formatDate', () => {
+  it('formats as DD.MM.YYYY', () => {
+    expect(formatDate('2026-08-14')).toBe('14.08.2026');
+    expect(formatDate('2024-07-02T14:00')).toBe('02.07.2024');
   });
 });

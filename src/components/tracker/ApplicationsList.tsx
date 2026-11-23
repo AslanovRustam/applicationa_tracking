@@ -2,7 +2,7 @@
 
 import { SOURCE_LABELS } from '@/lib/domain/source';
 import { isStale } from '@/lib/domain/status';
-import { formatShortDate } from '@/lib/domain/time';
+import { formatDate } from '@/lib/domain/time';
 import type { Application } from '@/lib/domain/types';
 import { cn } from '@/lib/utils';
 import { StaleMark, StatusBadge } from './StatusBadge';
@@ -38,7 +38,7 @@ export function ApplicationsList({
               <StatusBadge app={a} className="mt-0.5 shrink-0" />
             </div>
             <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="tabular-nums">{formatShortDate(a.appliedAt)}</span>
+              <span className="tabular-nums">{formatDate(a.appliedAt)}</span>
               <span>·</span>
               <span>{SOURCE_LABELS[a.source]}</span>
               {isStale(a, today) && <StaleMark />}
