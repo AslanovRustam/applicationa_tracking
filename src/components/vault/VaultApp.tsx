@@ -100,6 +100,7 @@ export function VaultApp({
               onAddItem: () => setEditing({ sectionId: section.id }),
               onEditItem: (item) => setEditing(item),
               onMoveItem: (item, d) => void vault.moveItem(item.id, d),
+              onDropItem: (activeId, overId) => void vault.dropItem(activeId, overId),
               onDeleteItem: (item) => setConfirm({ kind: 'item', item }),
               onCopyLink: (item) => void copyPlain(item.content),
               onCopyText: copyTemplate,

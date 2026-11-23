@@ -1,12 +1,23 @@
 'use client';
 
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { PlusIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Application, VaultItem, VaultSection } from '@/lib/domain/types';
 import { ItemMenu } from './ItemMenu';
 import { LinkChip } from './LinkChip';
+import { SortableItem } from './SortableItem';
 import { TextItemCard } from './TextItemCard';
 
 export interface SectionHandlers {
@@ -16,6 +27,7 @@ export interface SectionHandlers {
   onAddItem: () => void;
   onEditItem: (item: VaultItem) => void;
   onMoveItem: (item: VaultItem, delta: -1 | 1) => void;
+  onDropItem: (activeId: string, overId: string) => void;
   onDeleteItem: (item: VaultItem) => void;
   onCopyLink: (item: VaultItem) => void;
   onCopyText: (text: string, app: Application | null) => void;
@@ -36,6 +48,15 @@ export function SectionBlock({
 }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(section.name);
+  // Stable ids keep dnd-kit's accessibility attributes identical on server and client.
+  const dndId = useId();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const onDragEnd = (e: DragEndEvent) => {
+    if (e.over && e.active.id !== e.over.id) h.onDropItem(String(e.active.id), String(e.over.id));
+  };
   const links = items.filter((i) => i.type === 'link');
   const texts = items.filter((i) => i.type === 'text');
 
@@ -98,37 +119,53 @@ export function SectionBlock({
       {items.length === 0 && <p className="text-sm text-muted-foreground">Пусто — добавьте ссылку или текст.</p>}
 
       {links.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {links.map((item) => (
-            <LinkChip
-              key={item.id}
-              item={item}
-              onCopy={() => h.onCopyLink(item)}
-              onEdit={() => h.onEditItem(item)}
-              onUp={() => h.onMoveItem(item, -1)}
-              onDown={() => h.onMoveItem(item, 1)}
-              onDelete={() => h.onDeleteItem(item)}
-            />
-          ))}
-        </div>
+        <DndContext id={`${dndId}-links`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={links.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="flex flex-wrap gap-2">
+              {links.map((item) => (
+                <SortableItem key={item.id} id={item.id} label={item.title}>
+                  {(handle) => (
+                    <LinkChip
+                      item={item}
+                      handle={handle}
+                      onCopy={() => h.onCopyLink(item)}
+                      onEdit={() => h.onEditItem(item)}
+                      onUp={() => h.onMoveItem(item, -1)}
+                      onDown={() => h.onMoveItem(item, 1)}
+                      onDelete={() => h.onDeleteItem(item)}
+                    />
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {texts.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
-          {texts.map((item) => (
-            <TextItemCard
-              key={item.id}
-              item={item}
-              applications={applications}
-              defaultApplicationId={defaultApplicationId}
-              onCopy={h.onCopyText}
-              onEdit={() => h.onEditItem(item)}
-              onUp={() => h.onMoveItem(item, -1)}
-              onDown={() => h.onMoveItem(item, 1)}
-              onDelete={() => h.onDeleteItem(item)}
-            />
-          ))}
-        </div>
+        <DndContext id={`${dndId}-texts`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={texts.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="grid gap-3 md:grid-cols-2">
+              {texts.map((item) => (
+                <SortableItem key={item.id} id={item.id} label={item.title}>
+                  {(handle) => (
+                    <TextItemCard
+                      item={item}
+                      handle={handle}
+                      applications={applications}
+                      defaultApplicationId={defaultApplicationId}
+                      onCopy={h.onCopyText}
+                      onEdit={() => h.onEditItem(item)}
+                      onUp={() => h.onMoveItem(item, -1)}
+                      onDown={() => h.onMoveItem(item, 1)}
+                      onDelete={() => h.onDeleteItem(item)}
+                    />
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </section>
   );

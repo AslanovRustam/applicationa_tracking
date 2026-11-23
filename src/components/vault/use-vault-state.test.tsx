@@ -82,3 +82,27 @@ describe('useVaultState', () => {
     expect(result.current.items[0].title).toBe('GitHub');
   });
 });
+
+describe('reordering links', () => {
+  const l = (id: string, order: number): VaultItem => ({ ...item, id, title: id, order });
+  const text: VaultItem = { ...item, id: 't', type: 'text', title: 'T', order: 1 };
+
+  it('drop puts the dragged link at the target and saves the section order', async () => {
+    actions.reorderItemsAction.mockResolvedValue({ ok: true, data: [] });
+    const { result } = renderHook(() => useVaultState({ sections: [section], items: [l('a', 0), text, l('b', 2), l('c', 3)] }));
+    await act(async () => {
+      await result.current.dropItem('c', 'a');
+    });
+    expect(actions.reorderItemsAction).toHaveBeenCalledWith('s1', ['c', 'a', 'b', 't']);
+    expect(result.current.items.filter((i) => i.type === 'link').map((i) => i.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('moving a link skips a text neighbour', async () => {
+    actions.reorderItemsAction.mockResolvedValue({ ok: true, data: [] });
+    const { result } = renderHook(() => useVaultState({ sections: [section], items: [l('a', 0), text, l('b', 2)] }));
+    await act(async () => {
+      await result.current.moveItem('b', -1);
+    });
+    expect(actions.reorderItemsAction).toHaveBeenCalledWith('s1', ['b', 'a', 't']);
+  });
+});

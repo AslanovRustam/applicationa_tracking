@@ -17,6 +17,8 @@ export function ItemMenu({
   onDown,
   onDelete,
   editLabel = 'Изменить',
+  upLabel = 'Выше',
+  downLabel = 'Ниже',
 }: {
   label: string;
   onEdit: () => void;
@@ -24,6 +26,8 @@ export function ItemMenu({
   onDown: () => void;
   onDelete: () => void;
   editLabel?: string;
+  upLabel?: string;
+  downLabel?: string;
 }) {
   return (
     <DropdownMenu>
@@ -37,10 +41,10 @@ export function ItemMenu({
           <PencilIcon /> {editLabel}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onUp}>
-          <ArrowUpIcon /> Выше
+          <ArrowUpIcon /> {upLabel}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onDown}>
-          <ArrowDownIcon /> Ниже
+          <ArrowDownIcon /> {downLabel}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={onDelete}>

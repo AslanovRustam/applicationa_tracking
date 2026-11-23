@@ -11,6 +11,7 @@ export function LinkChip({
   onUp,
   onDown,
   onDelete,
+  handle,
 }: {
   item: VaultItem;
   onCopy: () => void;
@@ -18,9 +19,11 @@ export function LinkChip({
   onUp: () => void;
   onDown: () => void;
   onDelete: () => void;
+  handle?: React.ReactNode;
 }) {
   return (
-    <div className="inline-flex items-center rounded-lg border bg-card pl-1 shadow-xs">
+    <div className="inline-flex items-center rounded-lg border bg-card pl-0.5 shadow-xs">
+      {handle}
       <button
         type="button"
         onClick={onCopy}
@@ -39,7 +42,15 @@ export function LinkChip({
       >
         <ExternalLinkIcon className="size-3.5" />
       </a>
-      <ItemMenu label={item.title} onEdit={onEdit} onUp={onUp} onDown={onDown} onDelete={onDelete} />
+      <ItemMenu
+        label={item.title}
+        upLabel="Левее"
+        downLabel="Правее"
+        onEdit={onEdit}
+        onUp={onUp}
+        onDown={onDown}
+        onDelete={onDelete}
+      />
     </div>
   );
 }

@@ -35,6 +35,7 @@ export function TextItemCard({
   onUp,
   onDown,
   onDelete,
+  handle,
 }: {
   item: VaultItem;
   applications: Application[];
@@ -44,6 +45,7 @@ export function TextItemCard({
   onUp: () => void;
   onDown: () => void;
   onDelete: () => void;
+  handle?: React.ReactNode;
 }) {
   const hasVars = extractVariables(item.content).length > 0;
   // null = follow the default (the latest application); '' = explicitly "no application"
@@ -53,9 +55,10 @@ export function TextItemCard({
   const preview = hasVars ? fillTemplate(item.content, app, {}).text : item.content;
 
   return (
-    <article className="flex flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs">
+    <article className="flex h-full flex-col gap-2 rounded-xl border bg-card p-3 shadow-xs">
       <header className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        {handle && <div className="-ml-1 pt-0.5">{handle}</div>}
+        <div className="min-w-0 flex-1">
           <h4 className="truncate font-medium">{item.title}</h4>
           {item.tags.length > 0 && (
             <div className="mt-0.5 flex flex-wrap gap-1">

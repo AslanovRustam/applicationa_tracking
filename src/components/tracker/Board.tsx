@@ -12,6 +12,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { XCircleIcon } from 'lucide-react';
+import { useId } from 'react';
 import { BOARD_COLUMNS, boardChangeFor, type BoardColumn } from '@/lib/domain/board';
 import { SOURCE_LABELS } from '@/lib/domain/source';
 import { STATUS_LABELS } from '@/lib/domain/status';
@@ -109,6 +110,7 @@ export function Board({
   onOpen: (id: string) => void;
   onChangeStatus: (id: string, change: StatusChange) => void;
 }) {
+  const dndId = useId();
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
@@ -129,7 +131,7 @@ export function Board({
   };
 
   return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+    <DndContext id={dndId} sensors={sensors} onDragEnd={onDragEnd}>
       <div className="space-y-3">
         <div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-2 md:mx-0 md:px-0">
           {BOARD_COLUMNS.map((c) => (

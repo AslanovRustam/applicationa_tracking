@@ -13,6 +13,7 @@ import {
   updateItemAction,
 } from '@/app/actions';
 import type { VaultItem, VaultSection } from '@/lib/domain/types';
+import { sectionOrderAfterDrop, sectionOrderAfterMove } from '@/lib/domain/vault-order';
 import type { NewVaultItemInput, VaultItemPatch } from '@/lib/repo/inputs';
 import { safeAction } from '@/lib/safe-action';
 
@@ -37,6 +38,8 @@ export interface VaultState {
   updateItem(id: string, patch: VaultItemPatch): Promise<boolean>;
   deleteItem(id: string): Promise<boolean>;
   moveItem(id: string, delta: -1 | 1): Promise<boolean>;
+  /** Drag-and-drop: place `activeId` where `overId` is (same section and type). */
+  dropItem(activeId: string, overId: string): Promise<boolean>;
 }
 
 const newId = () => crypto.randomUUID();
@@ -201,10 +204,13 @@ export function useVaultState(initial: { sections: VaultSection[]; items: VaultI
     deleteItem: (id) => exec({ kind: 'deleteItem', id }),
     moveItem: async (id, delta) => {
       const item = snapshot.current.items.find((i) => i.id === id);
-      if (!item) return false;
-      const siblings = byOrder(snapshot.current.items.filter((i) => i.sectionId === item.sectionId)).map((i) => i.id);
-      const ids = moved(siblings, id, delta);
-      return ids ? exec({ kind: 'reorderItems', sectionId: item.sectionId, ids }) : false;
+      const ids = sectionOrderAfterMove(snapshot.current.items, id, delta);
+      return item && ids ? exec({ kind: 'reorderItems', sectionId: item.sectionId, ids }) : false;
+    },
+    dropItem: async (activeId, overId) => {
+      const item = snapshot.current.items.find((i) => i.id === activeId);
+      const ids = sectionOrderAfterDrop(snapshot.current.items, activeId, overId);
+      return item && ids ? exec({ kind: 'reorderItems', sectionId: item.sectionId, ids }) : false;
     },
   };
 }
