@@ -3,12 +3,13 @@
 import { PlusIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { filterApplications, groupCounts, sortApplications, type Filters } from '@/lib/domain/filter';
-import { isStale } from '@/lib/domain/status';
+import { ACTIVE_STATUSES, isStale } from '@/lib/domain/status';
 import { computeSummary } from '@/lib/domain/summary';
 import { todayInKyiv } from '@/lib/domain/time';
 import type { VaultItem } from '@/lib/domain/types';
 import type { AllData } from '@/lib/repo/repo';
 import { ApplicationDrawer } from './ApplicationDrawer';
+import { Board } from './Board';
 import { ApplicationForm } from './ApplicationForm';
 import { ApplicationsList } from './ApplicationsList';
 import { ApplicationsTable, type SortState } from './ApplicationsTable';
@@ -38,6 +39,13 @@ export function TrackerApp({
   const visible = useMemo(
     () => sortApplications(filterApplications(state.applications, filters), sort.key, sort.dir),
     [state.applications, filters, sort],
+  );
+  const boardApps = useMemo(
+    () =>
+      filterApplications(state.applications, { ...filters, group: 'all' }).filter((a) =>
+        ACTIVE_STATUSES.includes(a.status),
+      ),
+    [state.applications, filters],
   );
   const staleIds = useMemo(
     () => state.applications.filter((a) => isStale(a, today)).map((a) => a.id),
@@ -86,7 +94,12 @@ export function TrackerApp({
           </>
         )
       ) : (
-        <p className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">Доска — скоро.</p>
+        <Board
+          apps={boardApps}
+          history={state.history}
+          onOpen={setSelectedId}
+          onChangeStatus={(id, change) => void state.changeStatus(id, change)}
+        />
       )}
 
       <button
