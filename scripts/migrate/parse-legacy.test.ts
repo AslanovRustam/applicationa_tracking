@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLegacyDayMonth, parseLegacyRow, parseLegacyVault, type LegacyRow } from './parse-legacy';
+import { isImportable, parseLegacyDayMonth, parseLegacyRow, parseLegacyVault, type LegacyRow } from './parse-legacy';
 
 describe('parseLegacyDayMonth', () => {
   it.each([
@@ -113,6 +113,12 @@ describe('parseLegacyRow', () => {
   it('flags a bad application date', () => {
     const p = parseLegacyRow(row({ date: 'вчера' }))!;
     expect(p.review.length).toBeGreaterThan(0);
+  });
+
+  it('marks a row with only a link as not importable', () => {
+    const p = parseLegacyRow(row({ date: '', company: '', position: '', link: 'https://jobs.dou.ua/x' }), '2026-11-21')!;
+    expect(isImportable(p)).toBe(false);
+    expect(isImportable(parseLegacyRow(row({}))!)).toBe(true);
   });
 
   it('returns null for an empty row', () => {

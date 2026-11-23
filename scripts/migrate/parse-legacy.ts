@@ -142,6 +142,11 @@ export function parseLegacyRow(row: LegacyRow, fallbackDate?: string): ParsedLeg
   };
 }
 
+/** A row needs at least a company or a position to become an application. */
+export function isImportable(p: ParsedLegacy): boolean {
+  return Boolean(p.application.company || p.application.position);
+}
+
 export function parseLegacyVault(
   headerCellI: string,
   cellsI: string[],
