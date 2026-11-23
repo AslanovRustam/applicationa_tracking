@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Трекер откликов
 
-## Getting Started
+Личное веб-приложение для учёта откликов на вакансии. Данные хранятся в вашей собственной Google-таблице.
 
-First, run the development server:
+- **Отклики**: сводка (за неделю, всего, в процессе, ближайшее событие), таблица с поиском и фильтрами, карточка отклика с историей статусов, доска активных откликов с перетаскиванием, пометка «нет ответа 30+ дней» и массовая «Тишина».
+- **Копилка**: свои разделы со ссылками и шаблонами. Ссылки копируются в один клик. В шаблонах работают переменные `{компания}`, `{должность}`, `{ссылка}`, `{контакт}`, а также любые свои, например `{имя}`.
+- Работает на телефоне, можно установить на главный экран («Поделиться → На экран „Домой“» в Safari или «Установить приложение» в Chrome).
+
+Стек: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, Auth.js (вход через Google), Google Sheets API, Vitest.
+
+## Локальный запуск без Google
 
 ```bash
+npm install
+cp .env.example .env.local
+# в .env.local раскомментируйте:
+#   SHEETS_DRIVER=memory
+#   AUTH_DISABLED=true
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Приложение откроется на http://localhost:3000 с демо-данными. Данные хранятся в памяти и сбрасываются при перезапуске. В production оба флага игнорируются.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Тесты: `npm test`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Настройка для работы с Google-таблицей
 
-## Learn More
+### 1. Google Cloud: проект, Sheets API и служебный аккаунт
 
-To learn more about Next.js, take a look at the following resources:
+1. Откройте https://console.cloud.google.com/ и создайте проект, например `job-tracker`.
+2. **APIs & Services → Library** → найдите **Google Sheets API** → **Enable**.
+3. **APIs & Services → Credentials → Create credentials → Service account**. Задайте любое имя, роли не нужны.
+4. Откройте созданный аккаунт → **Keys → Add key → Create new key → JSON**. Скачается файл с ключом. Храните его как пароль и не коммитьте.
+5. Скопируйте email служебного аккаунта (вида `…@….iam.gserviceaccount.com`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. Вход через Google (OAuth-клиент)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **APIs & Services → OAuth consent screen**: тип **External**, заполните название и свой email, в **Test users** добавьте свой Google-аккаунт.
+2. **Credentials → Create credentials → OAuth client ID** → тип **Web application**.
+3. **Authorized redirect URIs**:
+   - `http://localhost:3000/api/auth/callback/google`
+   - `https://<ваш-домен>.vercel.app/api/auth/callback/google`
+4. Сохраните **Client ID** и **Client secret**.
 
-## Deploy on Vercel
+### 3. Новая таблица
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Создайте **новую пустую** Google-таблицу. С ней будет работать приложение.
+2. **Настройки доступа** → добавьте email служебного аккаунта с правом **Редактор**.
+3. ID таблицы — это часть адреса между `/d/` и `/edit`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Вкладки `applications`, `history`, `vault_sections`, `vault_items` с заголовками приложение создаст само при первом запуске. Не меняйте заголовки и колонку `id`. Открывать таблицу для просмотра можно в любой момент.
+
+### 4. Переменные окружения
+
+Локально впишите их в `.env.local`, на Vercel — в **Project → Settings → Environment Variables**:
+
+| Переменная | Значение |
+|---|---|
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | содержимое JSON-ключа одной строкой |
+| `SPREADSHEET_ID` | ID новой таблицы |
+| `AUTH_GOOGLE_ID` | Client ID |
+| `AUTH_GOOGLE_SECRET` | Client secret |
+| `AUTH_SECRET` | случайная строка: `npx auth secret` или `openssl rand -base64 32` |
+| `ALLOWED_EMAIL` | ваш Google-email, единственный, кому разрешён вход |
+
+### 5. Деплой на Vercel
+
+1. Залейте репозиторий на GitHub и импортируйте его в Vercel (**Add New → Project**).
+2. Добавьте переменные из шага 4 и нажмите **Deploy**.
+3. Добавьте адрес деплоя в redirect URI OAuth-клиента (шаг 2.3).
+
+## Перенос старых откликов
+
+Скрипт один раз читает старую таблицу (только чтение) и переносит записи в новую.
+
+1. Дайте служебному аккаунту доступ к **старой** таблице с правом **Читатель**.
+2. В `.env.local` укажите `OLD_SPREADSHEET_ID` (ID старой таблицы) и `OLD_SHEET_TAB` (название вкладки, по умолчанию `отклики`), а также `GOOGLE_SERVICE_ACCOUNT_JSON` и `SPREADSHEET_ID` новой таблицы.
+3. Пробный прогон без записи: `npm run migrate -- --dry-run`. Он покажет отчёт: сколько строк, какие статусы, что требует ручной проверки.
+4. Если отчёт в порядке: `npm run migrate`. Повторный запуск не создаёт дублей.
+
+Старая таблица не изменяется.
