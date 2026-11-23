@@ -3,15 +3,10 @@
 import { MoonIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { plural as pluralize } from '@/lib/plural';
 import { ConfirmDialog } from './ConfirmDialog';
 
-function plural(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'отклик';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'отклика';
-  return 'откликов';
-}
+const plural = (n: number) => pluralize(n, ['отклик', 'отклика', 'откликов']);
 
 export function StaleBanner({ staleIds, onMarkAll }: { staleIds: string[]; onMarkAll: (ids: string[]) => void }) {
   const [confirm, setConfirm] = useState(false);

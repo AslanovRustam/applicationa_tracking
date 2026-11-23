@@ -17,6 +17,7 @@ import { StaleBanner } from './StaleBanner';
 import { SummaryCards } from './SummaryCards';
 import { Toolbar, type TrackerView } from './Toolbar';
 import { useTrackerState } from './use-tracker-state';
+import { CoverLetterPicker } from '@/components/vault/CoverLetterPicker';
 
 export function TrackerApp({
   initial,
@@ -56,7 +57,6 @@ export function TrackerApp({
     () => state.history.filter((h) => h.applicationId === selectedId),
     [state.history, selectedId],
   );
-  void vaultItems; // used by the drawer's cover-letter picker (Task 11)
 
   return (
     <div className="space-y-4">
@@ -116,6 +116,7 @@ export function TrackerApp({
         appHistory={selectedHistory}
         state={state}
         onClose={() => setSelectedId(null)}
+        actionsSlot={selected && <CoverLetterPicker application={selected} items={vaultItems} />}
       />
       <ApplicationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={state.create} />
     </div>
