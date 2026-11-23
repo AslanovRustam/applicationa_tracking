@@ -1,7 +1,9 @@
 import 'server-only';
+import { readFileSync } from 'node:fs';
 import { buildFixtures } from '@/lib/dev/fixtures';
 import { createRepo, type Repo } from '@/lib/repo/repo';
 import type { SheetsClient } from '@/lib/sheets/client';
+import { resolveCredentialsJson } from '@/lib/sheets/credentials';
 import { createGoogleSheetsClient } from '@/lib/sheets/google-client';
 import { createMemorySheetsClient } from '@/lib/sheets/memory-client';
 
@@ -12,10 +14,10 @@ function createClient(): SheetsClient {
     return createMemorySheetsClient(buildFixtures(new Date()));
   }
   const spreadsheetId = process.env.SPREADSHEET_ID;
-  const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!spreadsheetId || !credentialsJson) {
-    throw new Error('SPREADSHEET_ID и GOOGLE_SERVICE_ACCOUNT_JSON не заданы (или SHEETS_DRIVER=memory для разработки)');
+  if (!spreadsheetId) {
+    throw new Error('SPREADSHEET_ID не задан (или SHEETS_DRIVER=memory для разработки)');
   }
+  const credentialsJson = resolveCredentialsJson(process.env, (p) => readFileSync(p, 'utf8'));
   return createGoogleSheetsClient({ spreadsheetId, credentialsJson });
 }
 

@@ -57,7 +57,8 @@ npm run dev
 
 | Переменная | Значение |
 |---|---|
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | содержимое JSON-ключа одной строкой |
+| `GOOGLE_SERVICE_ACCOUNT_FILE` | **локально**: путь к скачанному JSON-ключу, например `./my-key.json` (файл не коммитьте, добавьте его в `.gitignore`) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | **на Vercel**: содержимое JSON-ключа (вставьте файл целиком в поле значения). В `.env.local` многострочный JSON не работает, там используйте `GOOGLE_SERVICE_ACCOUNT_FILE` |
 | `SPREADSHEET_ID` | ID новой таблицы |
 | `AUTH_GOOGLE_ID` | Client ID |
 | `AUTH_GOOGLE_SECRET` | Client secret |
@@ -75,7 +76,7 @@ npm run dev
 Скрипт один раз читает старую таблицу (только чтение) и переносит записи в новую.
 
 1. Дайте служебному аккаунту доступ к **старой** таблице с правом **Читатель**.
-2. В `.env.local` укажите `OLD_SPREADSHEET_ID` (ID старой таблицы) и `OLD_SHEET_TAB` (название вкладки, по умолчанию `отклики`), а также `GOOGLE_SERVICE_ACCOUNT_JSON` и `SPREADSHEET_ID` новой таблицы.
+2. В `.env.local` укажите `OLD_SPREADSHEET_ID` (ID старой таблицы) и `OLD_SHEET_TAB` (название вкладки, по умолчанию `отклики`), а также `GOOGLE_SERVICE_ACCOUNT_FILE` и `SPREADSHEET_ID` новой таблицы.
 3. Пробный прогон без записи: `npm run migrate -- --dry-run`. Он покажет отчёт: сколько строк, какие статусы, что требует ручной проверки.
 4. Если отчёт в порядке: `npm run migrate`. Повторный запуск не создаёт дублей.
 

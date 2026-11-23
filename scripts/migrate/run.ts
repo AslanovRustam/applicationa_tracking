@@ -5,9 +5,10 @@
  *   npm run migrate                # write (skips rows that already exist)
  */
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Application, HistoryEntry, Status } from '../../src/lib/domain/types';
 import { createRepo } from '../../src/lib/repo/repo';
+import { resolveCredentialsJson } from '../../src/lib/sheets/credentials';
 import { createGoogleSheetsClient } from '../../src/lib/sheets/google-client';
 import { applicationFromRow, applicationToRow, historyToRow, parseRows } from '../../src/lib/sheets/schema';
 import { dedupeKey } from './dedupe';
@@ -27,7 +28,13 @@ function need(name: string): string {
   return v;
 }
 
-const credentialsJson = need('GOOGLE_SERVICE_ACCOUNT_JSON');
+let credentialsJson: string;
+try {
+  credentialsJson = resolveCredentialsJson(process.env, (p) => readFileSync(p, 'utf8'));
+} catch (e) {
+  console.error((e as Error).message);
+  process.exit(1);
+}
 const oldId = need('OLD_SPREADSHEET_ID');
 const newId = need('SPREADSHEET_ID');
 const oldTab = process.env.OLD_SHEET_TAB || 'отклики';
