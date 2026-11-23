@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   createItemAction,
@@ -14,13 +14,14 @@ import {
 } from '@/app/actions';
 import type { VaultItem, VaultSection } from '@/lib/domain/types';
 import type { NewVaultItemInput, VaultItemPatch } from '@/lib/repo/inputs';
+import { safeAction } from '@/lib/safe-action';
 
 type Op =
-  | { kind: 'createSection'; name: string }
+  | { kind: 'createSection'; id: string; name: string }
   | { kind: 'renameSection'; id: string; name: string }
   | { kind: 'deleteSection'; id: string }
   | { kind: 'reorderSections'; ids: string[] }
-  | { kind: 'createItem'; input: NewVaultItemInput }
+  | { kind: 'createItem'; input: NewVaultItemInput & { id: string } }
   | { kind: 'updateItem'; id: string; patch: VaultItemPatch }
   | { kind: 'deleteItem'; id: string }
   | { kind: 'reorderItems'; sectionId: string; ids: string[] };
@@ -38,8 +39,7 @@ export interface VaultState {
   moveItem(id: string, delta: -1 | 1): Promise<boolean>;
 }
 
-let tmpCounter = 0;
-const tmpId = () => `tmp-${Date.now()}-${++tmpCounter}`;
+const newId = () => crypto.randomUUID();
 const byOrder = <T extends { order: number }>(list: T[]) => [...list].sort((a, b) => a.order - b.order);
 
 function moved(ids: string[], id: string, delta: -1 | 1): string[] | null {
@@ -51,20 +51,31 @@ function moved(ids: string[], id: string, delta: -1 | 1): string[] | null {
   return next;
 }
 
+function pick<T extends object>(obj: T, keys: (keyof T)[]): Partial<T> {
+  const out: Partial<T> = {};
+  for (const k of keys) out[k] = obj[k];
+  return out;
+}
+
+/** Applies field updates to the listed ids only. */
+function patchById<T extends { id: string }>(list: T[], fields: Map<string, Partial<T>>): T[] {
+  return list.map((x) => (fields.has(x.id) ? { ...x, ...fields.get(x.id) } : x));
+}
+
+/** Re-inserts entities that are missing (rollback of a delete). */
+function reinsert<T extends { id: string }>(list: T[], missing: T[]): T[] {
+  return [...list, ...missing.filter((m) => !list.some((x) => x.id === m.id))];
+}
+
 export function useVaultState(initial: { sections: VaultSection[]; items: VaultItem[] }): VaultState {
-  const [sections, setSections] = useState(() => byOrder(initial.sections));
-  const [items, setItems] = useState(() => byOrder(initial.items));
-  const snapshot = useRef({ sections, items });
+  const [sections, setSections] = useState(initial.sections);
+  const [items, setItems] = useState(initial.items);
+  const snapshot = useRef({ sections: initial.sections, items: initial.items });
   const execRef = useRef<(op: Op) => Promise<boolean>>(async () => false);
 
   useEffect(() => {
     snapshot.current = { sections, items };
   }, [sections, items]);
-
-  const restore = (before: { sections: VaultSection[]; items: VaultItem[] }) => {
-    setSections(before.sections);
-    setItems(before.items);
-  };
 
   const fail = (error: string, op: Op) => {
     toast.error('Не удалось сохранить', {
@@ -75,81 +86,94 @@ export function useVaultState(initial: { sections: VaultSection[]; items: VaultI
     return false;
   };
 
+  const orders = <T extends { id: string; order: number }>(list: T[], ids: string[]) =>
+    new Map(list.filter((x) => ids.includes(x.id)).map((x) => [x.id, { order: x.order } as Partial<T>]));
+
   async function exec(op: Op): Promise<boolean> {
     const before = snapshot.current;
     switch (op.kind) {
       case 'createSection': {
-        const id = tmpId();
         const order = before.sections.reduce((m, s) => Math.max(m, s.order + 1), 0);
-        setSections((prev) => [...prev, { id, name: op.name, order }]);
-        const res = await createSectionAction(op.name);
+        setSections((prev) => [...prev.filter((s) => s.id !== op.id), { id: op.id, name: op.name, order }]);
+        const res = await safeAction(() => createSectionAction(op.name, op.id));
         if (res.ok) {
-          setSections((prev) => prev.map((s) => (s.id === id ? res.data : s)));
+          setSections((prev) => prev.map((s) => (s.id === op.id ? res.data : s)));
           return true;
         }
-        setSections((prev) => prev.filter((s) => s.id !== id));
+        setSections((prev) => prev.filter((s) => s.id !== op.id));
         return fail(res.error, op);
       }
       case 'renameSection': {
-        setSections((prev) => prev.map((s) => (s.id === op.id ? { ...s, name: op.name } : s)));
-        const res = await renameSectionAction(op.id, op.name);
+        const prevSection = before.sections.find((s) => s.id === op.id);
+        if (!prevSection) return false;
+        setSections((prev) => patchById(prev, new Map([[op.id, { name: op.name }]])));
+        const res = await safeAction(() => renameSectionAction(op.id, op.name));
         if (res.ok) return true;
-        restore(before);
+        setSections((prev) => patchById(prev, new Map([[op.id, { name: prevSection.name }]])));
         return fail(res.error, op);
       }
       case 'deleteSection': {
+        const prevSection = before.sections.find((s) => s.id === op.id);
+        if (!prevSection) return false;
+        const prevItems = before.items.filter((i) => i.sectionId === op.id);
         setSections((prev) => prev.filter((s) => s.id !== op.id));
         setItems((prev) => prev.filter((i) => i.sectionId !== op.id));
-        const res = await deleteSectionAction(op.id);
+        const res = await safeAction(() => deleteSectionAction(op.id));
         if (res.ok) return true;
-        restore(before);
+        setSections((prev) => reinsert(prev, [prevSection]));
+        setItems((prev) => reinsert(prev, prevItems));
         return fail(res.error, op);
       }
       case 'reorderSections': {
-        setSections((prev) => byOrder(prev.map((s) => ({ ...s, order: op.ids.indexOf(s.id) }))));
-        const res = await reorderSectionsAction(op.ids);
+        const prevOrders = orders(before.sections, op.ids);
+        setSections((prev) => patchById(prev, new Map(op.ids.map((id, order) => [id, { order }]))));
+        const res = await safeAction(() => reorderSectionsAction(op.ids));
         if (res.ok) return true;
-        restore(before);
+        setSections((prev) => patchById(prev, prevOrders));
         return fail(res.error, op);
       }
       case 'createItem': {
-        const id = tmpId();
+        const { input } = op;
         const order = before.items
-          .filter((i) => i.sectionId === op.input.sectionId)
+          .filter((i) => i.sectionId === input.sectionId)
           .reduce((m, i) => Math.max(m, i.order + 1), 0);
-        setItems((prev) => [...prev, { id, ...op.input, order }]);
-        const res = await createItemAction(op.input);
+        setItems((prev) => [...prev.filter((i) => i.id !== input.id), { ...input, order }]);
+        const res = await safeAction(() => createItemAction(input));
         if (res.ok) {
-          setItems((prev) => prev.map((i) => (i.id === id ? res.data : i)));
+          setItems((prev) => prev.map((i) => (i.id === input.id ? res.data : i)));
           return true;
         }
-        setItems((prev) => prev.filter((i) => i.id !== id));
+        setItems((prev) => prev.filter((i) => i.id !== input.id));
         return fail(res.error, op);
       }
       case 'updateItem': {
-        setItems((prev) => prev.map((i) => (i.id === op.id ? { ...i, ...op.patch } : i)));
-        const res = await updateItemAction(op.id, op.patch);
+        const prevItem = before.items.find((i) => i.id === op.id);
+        if (!prevItem) return false;
+        const keys = Object.keys(op.patch) as (keyof VaultItem)[];
+        setItems((prev) => patchById<VaultItem>(prev, new Map([[op.id, op.patch as Partial<VaultItem>]])));
+        const res = await safeAction(() => updateItemAction(op.id, op.patch));
         if (res.ok) {
-          setItems((prev) => prev.map((i) => (i.id === op.id ? res.data : i)));
+          setItems((prev) => patchById(prev, new Map([[op.id, pick(res.data, keys)]])));
           return true;
         }
-        restore(before);
+        setItems((prev) => patchById(prev, new Map([[op.id, pick(prevItem, keys)]])));
         return fail(res.error, op);
       }
       case 'deleteItem': {
+        const prevItem = before.items.find((i) => i.id === op.id);
+        if (!prevItem) return false;
         setItems((prev) => prev.filter((i) => i.id !== op.id));
-        const res = await deleteItemAction(op.id);
+        const res = await safeAction(() => deleteItemAction(op.id));
         if (res.ok) return true;
-        restore(before);
+        setItems((prev) => reinsert(prev, [prevItem]));
         return fail(res.error, op);
       }
       case 'reorderItems': {
-        setItems((prev) =>
-          byOrder(prev.map((i) => (i.sectionId === op.sectionId ? { ...i, order: op.ids.indexOf(i.id) } : i))),
-        );
-        const res = await reorderItemsAction(op.sectionId, op.ids);
+        const prevOrders = orders(before.items, op.ids);
+        setItems((prev) => patchById(prev, new Map(op.ids.map((id, order) => [id, { order }]))));
+        const res = await safeAction(() => reorderItemsAction(op.sectionId, op.ids));
         if (res.ok) return true;
-        restore(before);
+        setItems((prev) => patchById(prev, prevOrders));
         return fail(res.error, op);
       }
     }
@@ -159,17 +183,20 @@ export function useVaultState(initial: { sections: VaultSection[]; items: VaultI
     execRef.current = exec;
   });
 
+  const sortedSections = useMemo(() => byOrder(sections), [sections]);
+  const sortedItems = useMemo(() => byOrder(items), [items]);
+
   return {
-    sections,
-    items,
-    createSection: (name) => exec({ kind: 'createSection', name }),
+    sections: sortedSections,
+    items: sortedItems,
+    createSection: (name) => exec({ kind: 'createSection', id: newId(), name }),
     renameSection: (id, name) => exec({ kind: 'renameSection', id, name }),
     deleteSection: (id) => exec({ kind: 'deleteSection', id }),
     moveSection: async (id, delta) => {
       const ids = moved(byOrder(snapshot.current.sections).map((s) => s.id), id, delta);
       return ids ? exec({ kind: 'reorderSections', ids }) : false;
     },
-    createItem: (input) => exec({ kind: 'createItem', input }),
+    createItem: (input) => exec({ kind: 'createItem', input: { ...input, id: input.id ?? newId() } }),
     updateItem: (id, patch) => exec({ kind: 'updateItem', id, patch }),
     deleteItem: (id) => exec({ kind: 'deleteItem', id }),
     moveItem: async (id, delta) => {

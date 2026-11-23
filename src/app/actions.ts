@@ -46,8 +46,8 @@ export async function deleteApplicationAction(id: string) {
   return run((r) => r.deleteApplication(id));
 }
 
-export async function createSectionAction(name: string) {
-  return run((r) => r.createSection(name));
+export async function createSectionAction(name: string, id?: string) {
+  return run((r) => r.createSection(name, id));
 }
 
 export async function renameSectionAction(id: string, name: string) {

@@ -11,6 +11,7 @@ import { createRepo } from '../../src/lib/repo/repo';
 import { createGoogleSheetsClient } from '../../src/lib/sheets/google-client';
 import { applicationFromRow, applicationToRow, historyToRow, parseRows } from '../../src/lib/sheets/schema';
 import { dedupeKey } from './dedupe';
+import { isMissingTabError } from './errors';
 import { isImportable, parseLegacyRow, parseLegacyVault, type ParsedLegacy } from './parse-legacy';
 
 if (existsSync('.env.local')) process.loadEnvFile('.env.local');
@@ -40,7 +41,7 @@ const chunk = <T>(list: T[], size: number) =>
   Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, i * size + size));
 
 async function main() {
-  const oldClient = createGoogleSheetsClient({ spreadsheetId: oldId, credentialsJson });
+  const oldClient = createGoogleSheetsClient({ spreadsheetId: oldId, credentialsJson, readOnly: true });
   const newClient = createGoogleSheetsClient({ spreadsheetId: newId, credentialsJson });
 
   const raw = await oldClient.readRange(`'${oldTab.replace(/'/g, "''")}'!A1:I`);
@@ -79,7 +80,9 @@ async function main() {
   try {
     const d = await newClient.batchRead(['applications']);
     existing = new Set(parseRows(d.applications, applicationFromRow, 'applications').map(dedupeKey));
-  } catch {
+  } catch (e) {
+    // Only a missing tab means "nothing imported yet"; anything else would silently disable dedupe.
+    if (!isMissingTabError(e)) throw e;
     existing = new Set();
   }
   const fresh = parsed.filter(({ p }) => !existing.has(dedupeKey(p.application)));

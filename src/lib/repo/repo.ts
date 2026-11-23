@@ -40,7 +40,7 @@ export interface Repo {
   changeStatus(id: string, change: StatusChange, now: Date): Promise<{ application: Application; history: HistoryEntry }>;
   markGhosted(ids: string[], now: Date): Promise<{ applications: Application[]; history: HistoryEntry[] }>;
   deleteApplication(id: string): Promise<void>;
-  createSection(name: string): Promise<VaultSection>;
+  createSection(name: string, id?: string): Promise<VaultSection>;
   renameSection(id: string, name: string): Promise<VaultSection>;
   deleteSection(id: string): Promise<void>;
   reorderSections(orderedIds: string[]): Promise<VaultSection[]>;
@@ -96,9 +96,15 @@ export function createRepo(client: SheetsClient, newId: () => string = () => cry
 
     async createApplication(rawInput, now) {
       const input = newApplicationSchema.parse(rawInput);
-      const appliedAt = input.appliedAt ?? todayInKyiv(now);
-      const application: Application = {
-        id: newId(),
+      const id = input.id ?? newId();
+      const existing = await client.batchRead(['applications', 'history']);
+      const prevApp = parseRows(existing.applications, applicationFromRow, 'applications').find((a) => a.id === id);
+      const prevHistory = parseRows(existing.history, historyFromRow, 'history').find((h) => h.applicationId === id);
+      if (prevApp && prevHistory) return { application: prevApp, history: prevHistory };
+
+      const appliedAt = prevApp?.appliedAt ?? input.appliedAt ?? todayInKyiv(now);
+      const application: Application = prevApp ?? {
+        id,
         appliedAt,
         company: input.company,
         position: input.position,
@@ -122,7 +128,7 @@ export function createRepo(client: SheetsClient, newId: () => string = () => cry
         at: appliedAt,
         note: '',
       };
-      await client.append('applications', [applicationToRow(application)]);
+      if (!prevApp) await client.append('applications', [applicationToRow(application)]);
       await client.append('history', [historyToRow(history)]);
       return { application, history };
     },
@@ -167,11 +173,13 @@ export function createRepo(client: SheetsClient, newId: () => string = () => cry
       await client.deleteByIds('applications', [id]);
     },
 
-    async createSection(rawName) {
+    async createSection(rawName, clientId) {
       const name = sectionNameSchema.parse(rawName);
       const sections = await readSections();
+      const prev = clientId ? sections.find((s) => s.id === clientId) : undefined;
+      if (prev) return prev;
       const section: VaultSection = {
-        id: newId(),
+        id: clientId || newId(),
         name,
         order: sections.reduce((m, s) => Math.max(m, s.order + 1), 0),
       };
@@ -203,8 +211,11 @@ export function createRepo(client: SheetsClient, newId: () => string = () => cry
     async createItem(rawInput) {
       const input = newVaultItemSchema.parse(rawInput);
       find(await readSections(), input.sectionId, 'Section');
-      const items = (await readItems()).filter((i) => i.sectionId === input.sectionId);
-      const item: VaultItem = { id: newId(), ...input, order: items.reduce((m, i) => Math.max(m, i.order + 1), 0) };
+      const all = await readItems();
+      const prev = input.id ? all.find((i) => i.id === input.id) : undefined;
+      if (prev) return prev;
+      const items = all.filter((i) => i.sectionId === input.sectionId);
+      const item: VaultItem = { ...input, id: input.id ?? newId(), order: items.reduce((m, i) => Math.max(m, i.order + 1), 0) };
       await client.append('vault_items', [itemToRow(item)]);
       return item;
     },

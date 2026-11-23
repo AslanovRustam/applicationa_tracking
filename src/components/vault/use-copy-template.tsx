@@ -48,6 +48,7 @@ export function useCopyTemplate() {
             className="grid gap-3"
             onSubmit={(e) => {
               e.preventDefault();
+              if (pending.missing.some((name) => !values[name]?.trim())) return;
               const filled = fillTemplate(pending.text, pending.app, values);
               setPending(null);
               void copyAndNotify(filled.text);
@@ -59,12 +60,15 @@ export function useCopyTemplate() {
                 <Input
                   id={`var-${name}`}
                   autoFocus={i === 0}
+                  required
                   value={values[name] ?? ''}
                   onChange={(e) => setValues((v) => ({ ...v, [name]: e.target.value }))}
                 />
               </div>
             ))}
-            <Button type="submit">Скопировать</Button>
+            <Button type="submit" disabled={pending.missing.some((name) => !values[name]?.trim())}>
+              Скопировать
+            </Button>
           </form>
         )}
       </DialogContent>

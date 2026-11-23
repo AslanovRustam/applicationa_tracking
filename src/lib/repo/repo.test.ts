@@ -186,3 +186,48 @@ describe('vault', () => {
     await expect(repo.createItem({ sectionId: s.id, type: 'text', title: ' ', content: 'x', tags: [] })).rejects.toThrow();
   });
 });
+
+describe('idempotent creates', () => {
+  it('creating the same application id twice stores it once', async () => {
+    const repo = createRepo(createMemorySheetsClient(), seqIds());
+    const input = { id: 'client-1', company: 'A', position: 'B', url: '' };
+    await repo.createApplication(input, now);
+    const second = await repo.createApplication(input, now);
+    expect(second.application.id).toBe('client-1');
+    const all = await repo.loadAll();
+    expect(all.applications).toHaveLength(1);
+    expect(all.history).toHaveLength(1);
+  });
+
+  it('a retry after a failed history write completes without duplicating the application', async () => {
+    const client = createMemorySheetsClient();
+    const realAppend = client.append.bind(client);
+    let failHistory = true;
+    client.append = async (tab, rows) => {
+      if (tab === 'history' && failHistory) {
+        failHistory = false;
+        throw new Error('boom');
+      }
+      return realAppend(tab, rows);
+    };
+    const repo = createRepo(client, seqIds());
+    const input = { id: 'client-2', company: 'A', position: 'B', url: '' };
+    await expect(repo.createApplication(input, now)).rejects.toThrow('boom');
+    await repo.createApplication(input, now);
+    const all = await repo.loadAll();
+    expect(all.applications).toHaveLength(1);
+    expect(all.history).toHaveLength(1);
+  });
+
+  it('creating the same section and item ids twice stores each once', async () => {
+    const repo = createRepo(createMemorySheetsClient(), seqIds());
+    await repo.createSection('Ссылки', 'sec-1');
+    await repo.createSection('Ссылки', 'sec-1');
+    const item = { id: 'item-1', sectionId: 'sec-1', type: 'link' as const, title: 'GH', content: 'https://github.com', tags: [] };
+    await repo.createItem(item);
+    await repo.createItem(item);
+    const all = await repo.loadAll();
+    expect(all.sections).toHaveLength(1);
+    expect(all.items).toHaveLength(1);
+  });
+});

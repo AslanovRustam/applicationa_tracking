@@ -11,10 +11,12 @@ export function ApplicationsList({
   apps,
   today,
   onOpen,
+  pendingIds,
 }: {
   apps: Application[];
   today: string;
   onOpen: (id: string) => void;
+  pendingIds: ReadonlySet<string>;
 }) {
   return (
     <ul className="space-y-2">
@@ -25,7 +27,7 @@ export function ApplicationsList({
             onClick={() => onOpen(a.id)}
             className={cn(
               'w-full rounded-xl border bg-card px-3 py-2.5 text-left active:bg-muted/50',
-              a.id.startsWith('tmp-') && 'opacity-60',
+              pendingIds.has(a.id) && 'opacity-60',
             )}
           >
             <div className="flex items-start justify-between gap-2">

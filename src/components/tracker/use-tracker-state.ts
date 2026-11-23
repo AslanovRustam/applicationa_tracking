@@ -14,10 +14,13 @@ import { todayInKyiv } from '@/lib/domain/time';
 import type { Application, HistoryEntry, StatusChange } from '@/lib/domain/types';
 import type { ApplicationPatch, NewApplicationInput } from '@/lib/repo/inputs';
 import type { AllData } from '@/lib/repo/repo';
+import { safeAction } from '@/lib/safe-action';
 
 export interface TrackerState {
   applications: Application[];
   history: HistoryEntry[];
+  /** Applications whose creation has not been confirmed by the server yet. */
+  pendingIds: ReadonlySet<string>;
   create(input: NewApplicationInput): Promise<boolean>;
   update(id: string, patch: ApplicationPatch): Promise<boolean>;
   changeStatus(id: string, change: StatusChange): Promise<boolean>;
@@ -26,18 +29,24 @@ export interface TrackerState {
 }
 
 type Op =
-  | { kind: 'create'; input: NewApplicationInput }
+  | { kind: 'create'; input: NewApplicationInput & { id: string } }
   | { kind: 'update'; id: string; patch: ApplicationPatch }
   | { kind: 'status'; id: string; change: StatusChange }
   | { kind: 'ghost'; ids: string[] }
   | { kind: 'remove'; id: string };
 
-let tmpCounter = 0;
-const tmpId = () => `tmp-${Date.now()}-${++tmpCounter}`;
+const newId = () => crypto.randomUUID();
+
+function pick<T extends object>(obj: T, keys: (keyof T)[]): Partial<T> {
+  const out: Partial<T> = {};
+  for (const k of keys) out[k] = obj[k];
+  return out;
+}
 
 export function useTrackerState(initial: Pick<AllData, 'applications' | 'history'>): TrackerState {
   const [applications, setApplications] = useState(initial.applications);
   const [history, setHistory] = useState(initial.history);
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(() => new Set());
   const appsRef = useRef(initial.applications);
   const historyRef = useRef(initial.history);
   const execRef = useRef<(op: Op) => Promise<boolean>>(async () => false);
@@ -47,10 +56,17 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
     historyRef.current = history;
   }, [applications, history]);
 
-  const replaceApps = (updated: Application[]) =>
-    setApplications((prev) => {
-      const byId = new Map(updated.map((a) => [a.id, a]));
-      return prev.map((a) => byId.get(a.id) ?? a);
+  /** Merges `fields` into the listed applications only — never touches other fields or rows. */
+  const patchApps = (fields: Map<string, Partial<Application>>) =>
+    setApplications((prev) => prev.map((a) => (fields.has(a.id) ? { ...a, ...fields.get(a.id) } : a)));
+  const patchOne = (id: string, fields: Partial<Application>) => patchApps(new Map([[id, fields]]));
+
+  const setPending = (id: string, on: boolean) =>
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
     });
 
   const fail = (error: string, op: Op) => {
@@ -66,8 +82,8 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
     switch (op.kind) {
       case 'create': {
         const { input } = op;
+        const id = input.id;
         const now = new Date();
-        const id = tmpId();
         const optimistic: Application = {
           id,
           appliedAt: input.appliedAt ?? todayInKyiv(now),
@@ -85,11 +101,13 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
         };
-        setApplications((prev) => [optimistic, ...prev]);
-        const res = await createApplicationAction(input);
+        setApplications((prev) => [optimistic, ...prev.filter((a) => a.id !== id)]);
+        setPending(id, true);
+        const res = await safeAction(() => createApplicationAction(input));
+        setPending(id, false);
         if (res.ok) {
           setApplications((prev) => prev.map((a) => (a.id === id ? res.data.application : a)));
-          setHistory((prev) => [...prev, res.data.history]);
+          setHistory((prev) => [...prev.filter((h) => h.id !== res.data.history.id), res.data.history]);
           return true;
         }
         setApplications((prev) => prev.filter((a) => a.id !== id));
@@ -99,13 +117,14 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
       case 'update': {
         const before = appsRef.current.find((a) => a.id === op.id);
         if (!before) return false;
-        replaceApps([{ ...before, ...op.patch }]);
-        const res = await updateApplicationAction(op.id, op.patch);
+        const keys = Object.keys(op.patch) as (keyof Application)[];
+        patchOne(op.id, op.patch);
+        const res = await safeAction(() => updateApplicationAction(op.id, op.patch));
         if (res.ok) {
-          replaceApps([res.data]);
+          patchOne(op.id, { ...pick(res.data, keys), updatedAt: res.data.updatedAt });
           return true;
         }
-        replaceApps([before]);
+        patchOne(op.id, pick(before, keys));
         return fail(res.error, op);
       }
 
@@ -113,30 +132,31 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
         const before = appsRef.current.find((a) => a.id === op.id);
         if (!before) return false;
         const stage = op.change.status === 'interview' ? op.change.interviewStage : null;
-        const localHistory: HistoryEntry = { id: tmpId(), applicationId: op.id, ...op.change, interviewStage: stage };
-        replaceApps([{ ...before, status: op.change.status, interviewStage: stage }]);
+        const localHistory: HistoryEntry = { id: newId(), applicationId: op.id, ...op.change, interviewStage: stage };
+        patchOne(op.id, { status: op.change.status, interviewStage: stage });
         setHistory((prev) => [...prev, localHistory]);
-        const res = await changeStatusAction(op.id, op.change);
+        const res = await safeAction(() => changeStatusAction(op.id, op.change));
         setHistory((prev) => prev.filter((h) => h.id !== localHistory.id));
         if (res.ok) {
-          replaceApps([res.data.application]);
+          const a = res.data.application;
+          patchOne(op.id, { status: a.status, interviewStage: a.interviewStage, updatedAt: a.updatedAt });
           setHistory((prev) => [...prev, res.data.history]);
           return true;
         }
-        replaceApps([before]);
+        patchOne(op.id, { status: before.status, interviewStage: before.interviewStage });
         return fail(res.error, op);
       }
 
       case 'ghost': {
         const before = appsRef.current.filter((a) => op.ids.includes(a.id));
-        replaceApps(before.map((a) => ({ ...a, status: 'ghosted', interviewStage: null })));
-        const res = await markGhostedAction(op.ids);
+        patchApps(new Map(before.map((a) => [a.id, { status: 'ghosted' as const, interviewStage: null }])));
+        const res = await safeAction(() => markGhostedAction(op.ids));
         if (res.ok) {
-          replaceApps(res.data.applications);
+          patchApps(new Map(res.data.applications.map((a) => [a.id, pick(a, ['status', 'interviewStage', 'updatedAt'])])));
           setHistory((prev) => [...prev, ...res.data.history]);
           return true;
         }
-        replaceApps(before);
+        patchApps(new Map(before.map((a) => [a.id, pick(a, ['status', 'interviewStage'])])));
         return fail(res.error, op);
       }
 
@@ -147,10 +167,12 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
         const beforeHistory = historyRef.current.filter((h) => h.applicationId === op.id);
         setApplications((prev) => prev.filter((a) => a.id !== op.id));
         setHistory((prev) => prev.filter((h) => h.applicationId !== op.id));
-        const res = await deleteApplicationAction(op.id);
+        const res = await safeAction(() => deleteApplicationAction(op.id));
         if (res.ok) return true;
-        setApplications((prev) => [...prev.slice(0, index), before, ...prev.slice(index)]);
-        setHistory((prev) => [...prev, ...beforeHistory]);
+        setApplications((prev) =>
+          prev.some((a) => a.id === op.id) ? prev : [...prev.slice(0, index), before, ...prev.slice(index)],
+        );
+        setHistory((prev) => [...prev, ...beforeHistory.filter((h) => !prev.some((p) => p.id === h.id))]);
         return fail(res.error, op);
       }
     }
@@ -163,7 +185,8 @@ export function useTrackerState(initial: Pick<AllData, 'applications' | 'history
   return {
     applications,
     history,
-    create: (input) => exec({ kind: 'create', input }),
+    pendingIds,
+    create: (input) => exec({ kind: 'create', input: { ...input, id: input.id ?? newId() } }),
     update: (id, patch) => exec({ kind: 'update', id, patch }),
     changeStatus: (id, change) => exec({ kind: 'status', id, change }),
     markGhosted: (ids) => exec({ kind: 'ghost', ids }),

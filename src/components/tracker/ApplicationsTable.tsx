@@ -46,6 +46,7 @@ export function ApplicationsTable({
   onSort,
   onOpen,
   selectedId,
+  pendingIds,
 }: {
   apps: Application[];
   today: string;
@@ -53,6 +54,7 @@ export function ApplicationsTable({
   onSort: (s: SortState) => void;
   onOpen: (id: string) => void;
   selectedId: string | null;
+  pendingIds: ReadonlySet<string>;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border">
@@ -81,7 +83,7 @@ export function ApplicationsTable({
               className={cn(
                 'cursor-pointer border-t transition-colors hover:bg-muted/40',
                 selectedId === a.id && 'bg-blue-50 hover:bg-blue-50 dark:bg-blue-950/40',
-                a.id.startsWith('tmp-') && 'opacity-60',
+                pendingIds.has(a.id) && 'opacity-60',
               )}
             >
               <td className="px-3 py-2 tabular-nums text-muted-foreground">{formatShortDate(a.appliedAt)}</td>

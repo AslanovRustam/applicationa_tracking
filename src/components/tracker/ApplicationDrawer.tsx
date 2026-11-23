@@ -26,7 +26,7 @@ export function ApplicationDrawer({
 }: {
   app: Application | null;
   appHistory: HistoryEntry[];
-  state: Pick<TrackerState, 'update' | 'changeStatus' | 'remove'>;
+  state: Pick<TrackerState, 'update' | 'changeStatus' | 'remove' | 'pendingIds'>;
   onClose: () => void;
   actionsSlot?: React.ReactNode;
 }) {
@@ -73,11 +73,11 @@ function DrawerBody({
 }: {
   app: Application;
   appHistory: HistoryEntry[];
-  state: Pick<TrackerState, 'update' | 'changeStatus' | 'remove'>;
+  state: Pick<TrackerState, 'update' | 'changeStatus' | 'remove' | 'pendingIds'>;
   actionsSlot?: React.ReactNode;
   onDelete: () => void;
 }) {
-  const pending = app.id.startsWith('tmp-');
+  const pending = state.pendingIds.has(app.id);
   const stale = isStale(app, todayInKyiv(new Date()));
   const update = (patch: Parameters<TrackerState['update']>[1]) => void state.update(app.id, patch);
 

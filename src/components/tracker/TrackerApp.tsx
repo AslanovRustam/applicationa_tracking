@@ -86,10 +86,11 @@ export function TrackerApp({
                 onSort={setSort}
                 onOpen={setSelectedId}
                 selectedId={selectedId}
+                pendingIds={state.pendingIds}
               />
             </div>
             <div className="md:hidden">
-              <ApplicationsList apps={visible} today={today} onOpen={setSelectedId} />
+              <ApplicationsList apps={visible} today={today} onOpen={setSelectedId} pendingIds={state.pendingIds} />
             </div>
           </>
         )

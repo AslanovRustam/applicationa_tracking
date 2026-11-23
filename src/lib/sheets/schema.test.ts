@@ -118,3 +118,18 @@ describe('parseRows', () => {
     warn.mockRestore();
   });
 });
+
+describe('parseRows duplicate ids', () => {
+  it('keeps only the last row for a duplicated id', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const first = applicationToRow(makeApp({ id: 'dup', notes: 'old' }));
+    const other = applicationToRow(makeApp({ id: 'x' }));
+    const last = applicationToRow(makeApp({ id: 'dup', notes: 'new' }));
+    const result = parseRows([first, other, last], applicationFromRow, 'applications');
+    expect(result.map((a) => [a.id, a.notes])).toEqual([
+      ['x', ''],
+      ['dup', 'new'],
+    ]);
+    warn.mockRestore();
+  });
+});

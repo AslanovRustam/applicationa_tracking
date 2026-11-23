@@ -203,7 +203,7 @@ export function itemToRow(i: VaultItem): string[] {
   });
 }
 
-export function parseRows<T>(rows: string[][], fromRow: (r: string[]) => T | null, tab: TabName): T[] {
+export function parseRows<T extends { id: string }>(rows: string[][], fromRow: (r: string[]) => T | null, tab: TabName): T[] {
   const out: T[] = [];
   rows.forEach((row, i) => {
     if (row.every((c) => (c ?? '').trim() === '')) return;
@@ -215,5 +215,9 @@ export function parseRows<T>(rows: string[][], fromRow: (r: string[]) => T | nul
     }
     out.push(parsed);
   });
-  return out;
+  // A duplicated id (e.g. a write applied twice) keeps only its last row.
+  const lastIndex = new Map(out.map((x, i) => [x.id, i]));
+  if (lastIndex.size === out.length) return out;
+  console.warn(`[sheets] duplicate ids in tab "${tab}", keeping the last row of each`);
+  return out.filter((x, i) => lastIndex.get(x.id) === i);
 }

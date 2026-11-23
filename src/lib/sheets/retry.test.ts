@@ -51,3 +51,24 @@ describe('withRetry', () => {
     expect(f.calls()).toBe(2);
   });
 });
+
+describe('withRetry only429', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('does not retry 5xx for non-idempotent writes', async () => {
+    const f = failing([{ code: 500 }]);
+    const p = withRetry(f.fn, { only429: true });
+    const assertion = expect(p).rejects.toEqual({ code: 500 });
+    await vi.runAllTimersAsync();
+    await assertion;
+    expect(f.calls()).toBe(1);
+  });
+
+  it('still retries 429 (request was not applied)', async () => {
+    const f = failing([{ code: 429 }]);
+    const p = withRetry(f.fn, { only429: true });
+    await vi.runAllTimersAsync();
+    await expect(p).resolves.toBe('ok');
+  });
+});

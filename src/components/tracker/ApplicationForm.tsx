@@ -50,6 +50,15 @@ export function ApplicationForm({
   const [form, setForm] = useState<FormState>(empty);
   const [errors, setErrors] = useState<{ company?: string; position?: string }>({});
   const urlRef = useRef<HTMLInputElement>(null);
+  // Fresh form (and today's Kyiv date) every time the dialog opens — the page may stay open overnight.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setForm(empty());
+      setErrors({});
+    }
+  }
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 

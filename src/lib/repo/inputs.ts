@@ -8,7 +8,11 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате
 const dateOrDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, 'Дата или дата-время');
 const sourceEnum = z.enum(SOURCES as [Source, ...Source[]]);
 
+const clientId = z.string().trim().min(1).max(64).optional();
+
 export const newApplicationSchema = z.object({
+  /** Client-generated id makes retries idempotent. */
+  id: clientId,
   company: required,
   position: required,
   url: z.string().trim().default(''),
@@ -50,6 +54,7 @@ export const statusChangeSchema = z.object({
 });
 
 export const newVaultItemSchema = z.object({
+  id: clientId,
   sectionId: required,
   type: z.enum(['link', 'text']),
   title: required,
@@ -57,6 +62,7 @@ export const newVaultItemSchema = z.object({
   tags: z.array(z.string().trim().min(1)),
 });
 export interface NewVaultItemInput {
+  id?: string;
   sectionId: string;
   type: VaultItemType;
   title: string;

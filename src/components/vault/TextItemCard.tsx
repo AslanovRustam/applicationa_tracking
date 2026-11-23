@@ -46,7 +46,9 @@ export function TextItemCard({
   onDelete: () => void;
 }) {
   const hasVars = extractVariables(item.content).length > 0;
-  const [appId, setAppId] = useState<string>(defaultApplicationId ?? '');
+  // null = follow the default (the latest application); '' = explicitly "no application"
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const appId = chosenId ?? defaultApplicationId ?? '';
   const app = applications.find((a) => a.id === appId) ?? null;
   const preview = hasVars ? fillTemplate(item.content, app, {}).text : item.content;
 
@@ -74,7 +76,7 @@ export function TextItemCard({
         {hasVars && (
           <NativeSelect
             value={appId}
-            onChange={(e) => setAppId(e.target.value)}
+            onChange={(e) => setChosenId(e.target.value)}
             aria-label="Для какого отклика"
             className="min-w-0 flex-1"
           >

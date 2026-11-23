@@ -10,11 +10,20 @@ const q = (tab: string) => `'${tab.replace(/'/g, "''")}'`;
 const asStrings = (values: unknown[][] | null | undefined): string[][] =>
   (values ?? []).map((r) => r.map((c) => (c === null || c === undefined ? '' : String(c))));
 
-export function createGoogleSheetsClient(opts: { spreadsheetId: string; credentialsJson: string }): SheetsClient {
+export function sheetsScopes(readOnly: boolean): string[] {
+  return [`https://www.googleapis.com/auth/spreadsheets${readOnly ? '.readonly' : ''}`];
+}
+
+export function createGoogleSheetsClient(opts: {
+  spreadsheetId: string;
+  credentialsJson: string;
+  /** Read-only OAuth scope: any write attempt is rejected by Google. */
+  readOnly?: boolean;
+}): SheetsClient {
   const credentials = JSON.parse(opts.credentialsJson);
   const authClient = new gauth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    scopes: sheetsScopes(opts.readOnly ?? false),
   });
   const api = sheetsApi({ version: 'v4', auth: authClient });
   const spreadsheetId = opts.spreadsheetId;
@@ -84,14 +93,16 @@ export function createGoogleSheetsClient(opts: { spreadsheetId: string; credenti
 
     async append(tab, rows) {
       if (!rows.length) return;
-      await withRetry(() =>
-        api.spreadsheets.values.append({
+      await withRetry(
+        () =>
+          api.spreadsheets.values.append({
           spreadsheetId,
           range: `${q(tab)}!A1`,
           valueInputOption: 'RAW',
           insertDataOption: 'INSERT_ROWS',
           requestBody: { values: rows },
         }),
+        { only429: true },
       );
     },
 
