@@ -44,3 +44,4 @@ next-env.d.ts
 .superpowers/
 !.env.example
 .playwright-mcp/
+valid-arc-515619-d5-ecf1def8c50a.json

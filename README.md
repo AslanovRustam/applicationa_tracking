@@ -30,17 +30,18 @@ npm run dev
 1. Откройте https://console.cloud.google.com/ и создайте проект, например `job-tracker`.
 2. **APIs & Services → Library** → найдите **Google Sheets API** → **Enable**.
 3. **APIs & Services → Credentials → Create credentials → Service account**. Задайте любое имя, роли не нужны.
-4. Откройте созданный аккаунт → **Keys → Add key → Create new key → JSON**. Скачается файл с ключом. Храните его как пароль и не коммитьте.
+4. **APIs & Services → Credentials**, внизу в блоке **Service Accounts** нажмите на email созданного аккаунта (или **IAM & Admin → Service Accounts** → аккаунт). На его странице откройте вкладку **Keys → Add key → Create new key → JSON → Create**. Скачается файл с ключом. Храните его как пароль и не коммитьте.
 5. Скопируйте email служебного аккаунта (вида `…@….iam.gserviceaccount.com`).
 
 ### 2. Вход через Google (OAuth-клиент)
 
-1. **APIs & Services → OAuth consent screen**: тип **External**, заполните название и свой email, в **Test users** добавьте свой Google-аккаунт.
-2. **Credentials → Create credentials → OAuth client ID** → тип **Web application**.
-3. **Authorized redirect URIs**:
+1. **Google Auth Platform** (бывший «OAuth consent screen») → **Get started**: укажите название приложения и свой email, на шаге **Audience** выберите **External**, затем завершите мастер (**Create**).
+2. **Google Auth Platform → Audience → Test users → Add users**: добавьте свой Google-аккаунт. Статус «Testing» менять не нужно.
+3. **Google Auth Platform → Clients → Create client** → тип **Web application**.
+4. **Authorized redirect URIs**:
    - `http://localhost:3000/api/auth/callback/google`
    - `https://<ваш-домен>.vercel.app/api/auth/callback/google`
-4. Сохраните **Client ID** и **Client secret**.
+5. Сохраните **Client ID** и **Client secret**.
 
 ### 3. Новая таблица
 
