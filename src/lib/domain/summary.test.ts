@@ -49,3 +49,14 @@ describe('computeSummary', () => {
     expect(computeSummary([makeApp()], now).nextEvent).toBeNull();
   });
 });
+
+describe('archived in summary', () => {
+  it('is not in progress and its event is not the next one', () => {
+    const s = computeSummary(
+      [makeApp({ id: 'arc', company: 'Archived', status: 'archived', nextEventAt: '2026-11-24T10:00' })],
+      now,
+    );
+    expect(s.inProgress).toBe(0);
+    expect(s.nextEvent).toBeNull();
+  });
+});

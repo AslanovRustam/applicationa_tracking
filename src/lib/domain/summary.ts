@@ -25,6 +25,7 @@ export function computeSummary(apps: Application[], now: Date): Summary {
       a.nextEventAt &&
       a.status !== 'rejected' &&
       a.status !== 'ghosted' &&
+      a.status !== 'archived' &&
       a.nextEventAt >= nowLocal &&
       (!nextEvent || a.nextEventAt < nextEvent.at)
     ) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardChangeFor } from './board';
+import { BOARD_COLUMNS, boardChangeFor } from './board';
 import { makeApp, makeHistory } from './test-helpers';
 
 const now = new Date('2026-11-23T10:00:00Z'); // 12:00 Kyiv
@@ -35,5 +35,24 @@ describe('boardChangeFor', () => {
       at: '2026-11-23T12:00',
       note: '',
     });
+  });
+});
+
+describe('archive column', () => {
+  it('is the last board column', () => {
+    expect(BOARD_COLUMNS).toEqual(['screening', 'interview', 'offer', 'archived']);
+  });
+
+  it('archives with no stage', () => {
+    expect(boardChangeFor(makeApp({ status: 'interview', interviewStage: 2 }), [], 'archived', now)).toEqual({
+      status: 'archived',
+      interviewStage: null,
+      at: '2026-11-23T12:00',
+      note: '',
+    });
+  });
+
+  it('restores from the archive', () => {
+    expect(boardChangeFor(makeApp({ status: 'archived' }), [], 'screening', now)?.status).toBe('screening');
   });
 });

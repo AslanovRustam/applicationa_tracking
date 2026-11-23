@@ -43,8 +43,8 @@ export function TrackerApp({
   );
   const boardApps = useMemo(
     () =>
-      filterApplications(state.applications, { ...filters, group: 'all' }).filter((a) =>
-        ACTIVE_STATUSES.includes(a.status),
+      filterApplications(state.applications, { ...filters, group: 'all' }).filter(
+        (a) => ACTIVE_STATUSES.includes(a.status) || a.status === 'archived',
       ),
     [state.applications, filters],
   );

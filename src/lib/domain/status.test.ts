@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isStale, nextInterviewStage, statusBadgeLabel } from './status';
+import { isStale, nextInterviewStage, sortHistoryDesc, statusBadgeLabel } from './status';
 import { makeApp, makeHistory } from './test-helpers';
 
 describe('isStale', () => {
@@ -42,5 +42,22 @@ describe('statusBadgeLabel', () => {
   it('uses plain labels for other statuses', () => {
     expect(statusBadgeLabel({ status: 'rejected', interviewStage: null })).toBe('Отказ');
     expect(statusBadgeLabel({ status: 'ghosted', interviewStage: null })).toBe('Тишина');
+  });
+});
+
+describe('archived status', () => {
+  it('is labelled Архив', () => {
+    expect(statusBadgeLabel({ status: 'archived', interviewStage: null })).toBe('Архив');
+  });
+});
+
+describe('sortHistoryDesc', () => {
+  it('puts the latest change first, using record order to break same-minute ties', () => {
+    const entries = [
+      makeHistory({ id: 'sent', status: 'sent', at: '2026-11-20' }),
+      makeHistory({ id: 'scr', status: 'screening', at: '2026-11-23T23:05' }),
+      makeHistory({ id: 'arc', status: 'archived', at: '2026-11-23T23:05' }),
+    ];
+    expect(sortHistoryDesc(entries).map((h) => h.id)).toEqual(['arc', 'scr', 'sent']);
   });
 });

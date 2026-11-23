@@ -2,9 +2,9 @@ import { nextInterviewStage } from './status';
 import { nowInKyiv } from './time';
 import type { Application, HistoryEntry, StatusChange } from './types';
 
-export type BoardColumn = 'screening' | 'interview' | 'offer' | 'rejected';
+export type BoardColumn = 'screening' | 'interview' | 'offer' | 'archived' | 'rejected';
 
-export const BOARD_COLUMNS: BoardColumn[] = ['screening', 'interview', 'offer'];
+export const BOARD_COLUMNS: BoardColumn[] = ['screening', 'interview', 'offer', 'archived'];
 
 export function boardChangeFor(
   app: Application,

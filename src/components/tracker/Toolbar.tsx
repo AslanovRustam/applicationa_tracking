@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 export type TrackerView = 'table' | 'board';
 
-const GROUPS: StatusGroup[] = ['all', 'waiting', 'active', 'rejected', 'ghosted'];
+const GROUPS: StatusGroup[] = ['all', 'waiting', 'active', 'rejected', 'ghosted', 'archived'];
 
 export function Toolbar({
   filters,

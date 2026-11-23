@@ -92,6 +92,12 @@ function RejectZone() {
   );
 }
 
+/** Archive: most recently archived first; other columns keep the given order. */
+function columnApps(apps: Application[], column: BoardColumn): Application[] {
+  const list = apps.filter((a) => a.status === column);
+  return column === 'archived' ? [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : list;
+}
+
 export function Board({
   apps,
   history,
@@ -127,7 +133,7 @@ export function Board({
       <div className="space-y-3">
         <div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-2 md:mx-0 md:px-0">
           {BOARD_COLUMNS.map((c) => (
-            <Column key={c} column={c} apps={apps.filter((a) => a.status === c)} onOpen={onOpen} />
+            <Column key={c} column={c} apps={columnApps(apps, c)} onOpen={onOpen} />
           ))}
         </div>
         <RejectZone />

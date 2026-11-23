@@ -8,6 +8,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   offer: 'Оффер',
   rejected: 'Отказ',
   ghosted: 'Тишина',
+  archived: 'Архив',
 };
 
 export const ACTIVE_STATUSES: Status[] = ['screening', 'interview', 'offer'];
@@ -30,4 +31,12 @@ export function nextInterviewStage(appHistory: HistoryEntry[]): number {
     if (h.status === 'interview' && h.interviewStage && h.interviewStage > max) max = h.interviewStage;
   }
   return max + 1;
+}
+
+/** Newest first; entries with the same timestamp keep "later record = newer". */
+export function sortHistoryDesc(entries: HistoryEntry[]): HistoryEntry[] {
+  return entries
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => b.h.at.localeCompare(a.h.at) || b.i - a.i)
+    .map((x) => x.h);
 }

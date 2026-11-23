@@ -1,9 +1,10 @@
+import { sortHistoryDesc } from '@/lib/domain/status';
 import { formatShortDateTime } from '@/lib/domain/time';
 import type { HistoryEntry } from '@/lib/domain/types';
 import { StatusBadge } from './StatusBadge';
 
 export function HistoryTimeline({ entries }: { entries: HistoryEntry[] }) {
-  const sorted = [...entries].sort((a, b) => b.at.localeCompare(a.at));
+  const sorted = sortHistoryDesc(entries);
   if (!sorted.length) return <p className="text-sm text-muted-foreground">История пуста.</p>;
   return (
     <ol className="space-y-2 border-l-2 pl-3">

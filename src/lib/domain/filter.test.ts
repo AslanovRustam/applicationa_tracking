@@ -37,7 +37,7 @@ describe('filterApplications', () => {
 
 describe('groupCounts', () => {
   it('counts each group', () => {
-    expect(groupCounts(apps)).toEqual({ all: 5, waiting: 1, active: 2, rejected: 1, ghosted: 1 });
+    expect(groupCounts(apps)).toEqual({ all: 5, waiting: 1, active: 2, rejected: 1, ghosted: 1, archived: 0 });
   });
 });
 
@@ -59,5 +59,21 @@ describe('sortApplications', () => {
     const copy = [...apps];
     sortApplications(apps, 'company', 'asc');
     expect(apps).toEqual(copy);
+  });
+});
+
+describe('archived group', () => {
+  const withArchived = [...apps, makeApp({ id: '6', company: 'Old', status: 'archived' })];
+
+  it('filters archived only', () => {
+    expect(ids(filterApplications(withArchived, { ...base, group: 'archived' }))).toEqual(['6']);
+  });
+
+  it('does not count archived as active', () => {
+    expect(ids(filterApplications(withArchived, { ...base, group: 'active' }))).toEqual(['3', '4']);
+  });
+
+  it('counts archived', () => {
+    expect(groupCounts(withArchived).archived).toBe(1);
   });
 });

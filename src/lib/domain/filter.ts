@@ -1,7 +1,7 @@
 import { ACTIVE_STATUSES } from './status';
 import type { Application, Source, Status } from './types';
 
-export type StatusGroup = 'all' | 'waiting' | 'active' | 'rejected' | 'ghosted';
+export type StatusGroup = 'all' | 'waiting' | 'active' | 'rejected' | 'ghosted' | 'archived';
 
 export interface Filters {
   query: string;
@@ -17,6 +17,7 @@ export const STATUS_GROUP_LABELS: Record<StatusGroup, string> = {
   active: 'В процессе',
   rejected: 'Отказ',
   ghosted: 'Тишина',
+  archived: 'Архив',
 };
 
 function inGroup(status: Status, group: StatusGroup): boolean {
@@ -31,6 +32,8 @@ function inGroup(status: Status, group: StatusGroup): boolean {
       return status === 'rejected';
     case 'ghosted':
       return status === 'ghosted';
+    case 'archived':
+      return status === 'archived';
   }
 }
 
@@ -45,7 +48,7 @@ export function filterApplications(apps: Application[], f: Filters): Application
 }
 
 export function groupCounts(apps: Application[]): Record<StatusGroup, number> {
-  const groups: StatusGroup[] = ['all', 'waiting', 'active', 'rejected', 'ghosted'];
+  const groups: StatusGroup[] = ['all', 'waiting', 'active', 'rejected', 'ghosted', 'archived'];
   const counts = {} as Record<StatusGroup, number>;
   for (const g of groups) counts[g] = apps.filter((a) => inGroup(a.status, g)).length;
   return counts;
@@ -58,6 +61,7 @@ const STATUS_ORDER: Record<Status, number> = {
   sent: 3,
   ghosted: 4,
   rejected: 5,
+  archived: 6,
 };
 
 export function sortApplications(apps: Application[], key: SortKey, dir: 'asc' | 'desc'): Application[] {

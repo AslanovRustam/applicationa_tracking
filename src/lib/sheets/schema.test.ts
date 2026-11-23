@@ -133,3 +133,9 @@ describe('parseRows duplicate ids', () => {
     warn.mockRestore();
   });
 });
+
+describe('archived status row', () => {
+  it('is read', () => {
+    expect(applicationFromRow(applicationToRow(makeApp({ status: 'archived' })))?.status).toBe('archived');
+  });
+});

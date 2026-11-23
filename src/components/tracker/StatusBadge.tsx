@@ -9,6 +9,7 @@ export const STATUS_COLORS: Record<Status, string> = {
   offer: 'bg-green-50 text-green-700 ring-green-200 dark:bg-green-950 dark:text-green-300 dark:ring-green-900',
   rejected: 'bg-red-50 text-red-700 ring-red-200 dark:bg-red-950 dark:text-red-300 dark:ring-red-900',
   ghosted: 'bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-800',
+  archived: 'bg-stone-100 text-stone-600 ring-stone-300 dark:bg-stone-900 dark:text-stone-400 dark:ring-stone-700',
 };
 
 export function StatusBadge({ app, className }: { app: Pick<Application, 'status' | 'interviewStage'>; className?: string }) {

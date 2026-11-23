@@ -1,6 +1,6 @@
-export type Status = 'sent' | 'screening' | 'interview' | 'offer' | 'rejected' | 'ghosted';
+export type Status = 'sent' | 'screening' | 'interview' | 'offer' | 'rejected' | 'ghosted' | 'archived';
 
-export const STATUSES: readonly Status[] = ['sent', 'screening', 'interview', 'offer', 'rejected', 'ghosted'];
+export const STATUSES: readonly Status[] = ['sent', 'screening', 'interview', 'offer', 'rejected', 'ghosted', 'archived'];
 
 export type Source =
   | 'dou'
