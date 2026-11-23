@@ -3,13 +3,16 @@
 import { PlusIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { filterApplications, groupCounts, sortApplications, type Filters } from '@/lib/domain/filter';
+import { isStale } from '@/lib/domain/status';
 import { computeSummary } from '@/lib/domain/summary';
 import { todayInKyiv } from '@/lib/domain/time';
 import type { VaultItem } from '@/lib/domain/types';
 import type { AllData } from '@/lib/repo/repo';
+import { ApplicationDrawer } from './ApplicationDrawer';
 import { ApplicationForm } from './ApplicationForm';
 import { ApplicationsList } from './ApplicationsList';
 import { ApplicationsTable, type SortState } from './ApplicationsTable';
+import { StaleBanner } from './StaleBanner';
 import { SummaryCards } from './SummaryCards';
 import { Toolbar, type TrackerView } from './Toolbar';
 import { useTrackerState } from './use-tracker-state';
@@ -36,11 +39,21 @@ export function TrackerApp({
     () => sortApplications(filterApplications(state.applications, filters), sort.key, sort.dir),
     [state.applications, filters, sort],
   );
+  const staleIds = useMemo(
+    () => state.applications.filter((a) => isStale(a, today)).map((a) => a.id),
+    [state.applications, today],
+  );
+  const selected = state.applications.find((a) => a.id === selectedId) ?? null;
+  const selectedHistory = useMemo(
+    () => state.history.filter((h) => h.applicationId === selectedId),
+    [state.history, selectedId],
+  );
   void vaultItems; // used by the drawer's cover-letter picker (Task 11)
 
   return (
     <div className="space-y-4">
       <SummaryCards summary={summary} onOpenEvent={setSelectedId} />
+      <StaleBanner staleIds={staleIds} onMarkAll={(ids) => void state.markGhosted(ids)} />
       <Toolbar
         filters={filters}
         onFiltersChange={setFilters}
@@ -85,6 +98,12 @@ export function TrackerApp({
         <PlusIcon className="size-6" />
       </button>
 
+      <ApplicationDrawer
+        app={selected}
+        appHistory={selectedHistory}
+        state={state}
+        onClose={() => setSelectedId(null)}
+      />
       <ApplicationForm open={formOpen} onOpenChange={setFormOpen} onSubmit={state.create} />
     </div>
   );
